@@ -24,7 +24,14 @@ export default function Login() {
     );
   }
 
-  if (user) return <Navigate to="/chat" replace />;
+  if (user) {
+    const pendingInvite = sessionStorage.getItem('pendingInvite');
+    if (pendingInvite) {
+      sessionStorage.removeItem('pendingInvite');
+      return <Navigate to={`/join/${pendingInvite}`} replace />;
+    }
+    return <Navigate to="/chat" replace />;
+  }
 
   const validate = () => {
     const errs: typeof errors = {};
