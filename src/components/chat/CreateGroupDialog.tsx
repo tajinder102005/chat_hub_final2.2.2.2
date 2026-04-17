@@ -52,47 +52,21 @@ export default function CreateGroupDialog({ onCreated }: Props) {
     if (!name.trim() || !user) return;
     setCreating(true);
 
-    // Create group
-    const { data: group, error } = await supabase
-      .from('groups')
-      .insert({ name: name.trim(), created_by: user.id })
-      .select('id')
-      .single();
+    const memberIds = selectedMembers.map(m => m.user_id);
 
-    if (error || !group) {
-      console.error('Group creation error:', error);
-      toast.error('Failed to create group: ' + (error?.message || 'unknown error'));
-      setCreating(false);
-      return;
-    }
-
-    // Add creator as admin
-    const { error: adminError } = await supabase.from('group_members').insert({
-      group_id: group.id,
-      user_id: user.id,
-      role: 'admin',
+    const { data: groupId, error } = await supabase.rpc('create_group', {
+      group_name: name.trim(),
+      member_ids: memberIds,
     });
-    if (adminError) {
-      console.error('Add admin error:', adminError);
-      toast.error('Failed to add you as admin: ' + adminError.message);
+
+    if (error || !groupId) {
+      console.error('Group creation error:', error);
+      toast.error('Failed to create group: ' + (error?.message || 'unknown'));
       setCreating(false);
       return;
     }
 
-    // Add selected members
-    if (selectedMembers.length > 0) {
-      const membersToAdd = selectedMembers.map(m => ({
-        group_id: group.id,
-        user_id: m.user_id,
-        role: 'member' as const,
-      }));
-      const { error: memberError } = await supabase.from('group_members').insert(membersToAdd);
-      if (memberError) {
-        toast.error('Group created but some members could not be added');
-      }
-    }
-
-    toast.success('Group created successfully!');
+    toast.success('Group created!');
     setName('');
     setSearchQuery('');
     setSearchResults([]);
