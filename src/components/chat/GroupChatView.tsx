@@ -230,7 +230,7 @@ export default function GroupChatView({ groupId, onBack }: Props) {
       {/* Main chat */}
       <div className="flex flex-col flex-1 min-w-0">
         <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
-          <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={onBack}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <Avatar className="h-9 w-9 cursor-pointer" onClick={() => setPanel('settings')}>

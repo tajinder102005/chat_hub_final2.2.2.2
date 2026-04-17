@@ -20,15 +20,17 @@ export default function ChatApp() {
   const { user, loading } = useAuth();
   const location = useLocation();
   const [view, setView] = useState<ChatView>({ type: 'empty' });
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   usePresence();
 
-  // Handle direct chat open from QR code / chat-with link
+  // true = showing sidebar, false = showing chat (mobile only)
+  const isMobile = () => window.innerWidth < 768;
+  const showingChat = view.type !== 'empty';
+
   useEffect(() => {
     const state = location.state as { openConversation?: string; otherUserId?: string } | null;
     if (state?.openConversation && state?.otherUserId) {
       setView({ type: 'dm', conversationId: state.openConversation, otherUserId: state.otherUserId });
-      window.history.replaceState({}, ''); // clear state
+      window.history.replaceState({}, '');
     }
   }, [location.state]);
 
@@ -42,52 +44,59 @@ export default function ChatApp() {
 
   if (!user) return <Navigate to="/login" replace />;
 
+  const handleNavigate = (v: ChatView) => {
+    setView(v);
+  };
+
+  const handleBack = () => {
+    setView({ type: 'empty' });
+  };
+
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 border-r border-border flex-shrink-0 overflow-hidden`}>
-        <ChatSidebar
-          currentView={view}
-          onNavigate={(v) => { setView(v); if (window.innerWidth < 768) setSidebarOpen(false); }}
-        />
+    <div className="flex h-[100dvh] bg-background overflow-hidden">
+      {/* Sidebar — full width on mobile when no chat open, fixed width on desktop */}
+      <div className={`
+        flex-shrink-0 border-r border-border
+        ${isMobile()
+          ? showingChat ? 'hidden' : 'w-full'
+          : 'w-80'
+        }
+        md:block md:w-80
+        ${showingChat ? 'hidden md:block' : 'w-full md:w-80'}
+      `}>
+        <ChatSidebar currentView={view} onNavigate={handleNavigate} />
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main content — full width on mobile when chat open, flex-1 on desktop */}
+      <div className={`
+        flex-1 flex flex-col min-w-0
+        ${!showingChat ? 'hidden md:flex' : 'flex'}
+      `}>
         {view.type === 'empty' && (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-4">
               <MessageCircle className="h-8 w-8 text-primary" />
             </div>
             <h2 className="text-xl font-semibold text-foreground mb-2">Welcome to ChatHub</h2>
-            <p className="text-sm">Select a conversation or find people to connect with</p>
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="mt-4 text-sm text-primary hover:underline md:hidden"
-            >
-              {sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-            </button>
+            <p className="text-sm text-center px-4">Select a conversation or find people to connect with</p>
           </div>
         )}
         {view.type === 'dm' && (
           <DirectChat
             conversationId={view.conversationId}
             otherUserId={view.otherUserId}
-            onBack={() => { setView({ type: 'empty' }); setSidebarOpen(true); }}
+            onBack={handleBack}
           />
         )}
         {view.type === 'group' && (
-          <GroupChatView
-            groupId={view.groupId}
-            onBack={() => { setView({ type: 'empty' }); setSidebarOpen(true); }}
-          />
+          <GroupChatView groupId={view.groupId} onBack={handleBack} />
         )}
         {view.type === 'profile' && (
-          <ProfilePage onBack={() => { setView({ type: 'empty' }); setSidebarOpen(true); }} />
+          <ProfilePage onBack={handleBack} />
         )}
         {view.type === 'contacts' && (
           <ContactDiscovery
-            onBack={() => { setView({ type: 'empty' }); setSidebarOpen(true); }}
+            onBack={handleBack}
             onStartChat={(convId, otherUserId) => setView({ type: 'dm', conversationId: convId, otherUserId })}
           />
         )}

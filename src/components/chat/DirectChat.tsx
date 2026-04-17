@@ -127,9 +127,9 @@ export default function DirectChat({ conversationId, otherUserId, onBack }: Prop
   return (
     <div className="flex flex-col h-full">
       <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
-        <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
         <div className="relative">
           <Avatar className="h-9 w-9">
             <AvatarImage src={otherProfile?.avatar_url || ''} />
