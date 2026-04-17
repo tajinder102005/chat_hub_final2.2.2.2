@@ -9,6 +9,7 @@ import Signup from "@/pages/Signup";
 import ChatApp from "@/pages/ChatApp";
 import NotFound from "@/pages/NotFound";
 import JoinGroup from "@/pages/JoinGroup";
+import ChatWith from "@/pages/ChatWith";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
               <Route path="/signup" element={<Signup />} />
               <Route path="/chat" element={<ChatApp />} />
               <Route path="/join/:code" element={<JoinGroup />} />
+              <Route path="/chat-with/:userId" element={<ChatWith />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

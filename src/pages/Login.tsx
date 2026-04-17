@@ -30,6 +30,11 @@ export default function Login() {
       sessionStorage.removeItem('pendingInvite');
       return <Navigate to={`/join/${pendingInvite}`} replace />;
     }
+    const pendingChatWith = sessionStorage.getItem('pendingChatWith');
+    if (pendingChatWith) {
+      sessionStorage.removeItem('pendingChatWith');
+      return <Navigate to={`/chat-with/${pendingChatWith}`} replace />;
+    }
     return <Navigate to="/chat" replace />;
   }
 

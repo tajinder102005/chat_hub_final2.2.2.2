@@ -171,13 +171,26 @@ export default function ProfilePage({ onBack }: Props) {
           {/* QR Code */}
           <Card>
             <CardHeader><CardTitle className="text-base">Your QR Code</CardTitle></CardHeader>
-            <CardContent className="flex flex-col items-center gap-2">
+            <CardContent className="flex flex-col items-center gap-3">
               <div className="rounded-xl bg-white p-4">
-                <QRCodeSVG value={user?.id || ''} size={160} level="M" />
+                <QRCodeSVG
+                  value={`${window.location.origin}/chat-with/${user?.id}`}
+                  size={180}
+                  level="M"
+                />
               </div>
               <p className="text-xs text-muted-foreground text-center">
-                Others can scan this to connect with you
+                Share this QR code — anyone who scans it can start chatting with you instantly
               </p>
+              <Button
+                variant="outline" size="sm" className="gap-2"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/chat-with/${user?.id}`);
+                  toast.success('Chat link copied!');
+                }}
+              >
+                Copy Chat Link
+              </Button>
             </CardContent>
           </Card>
         </motion.div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePresence } from '@/hooks/usePresence';
 import ChatSidebar from '@/components/chat/ChatSidebar';
@@ -18,9 +18,19 @@ export type ChatView =
 
 export default function ChatApp() {
   const { user, loading } = useAuth();
+  const location = useLocation();
   const [view, setView] = useState<ChatView>({ type: 'empty' });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   usePresence();
+
+  // Handle direct chat open from QR code / chat-with link
+  useEffect(() => {
+    const state = location.state as { openConversation?: string; otherUserId?: string } | null;
+    if (state?.openConversation && state?.otherUserId) {
+      setView({ type: 'dm', conversationId: state.openConversation, otherUserId: state.otherUserId });
+      window.history.replaceState({}, ''); // clear state
+    }
+  }, [location.state]);
 
   if (loading) {
     return (
