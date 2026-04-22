@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useConnections } from '@/hooks/useConnections';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -39,7 +38,6 @@ interface Props {
 export default function ChatSidebar({ currentView, onNavigate }: Props) {
   const { user, signOut } = useAuth();
   const { profile } = useProfile();
-  const { pendingIncoming } = useConnections();
   const [tab, setTab] = useState<'chats' | 'groups'>('chats');
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [groups, setGroups] = useState<GroupItem[]>([]);
@@ -59,7 +57,7 @@ export default function ChatSidebar({ currentView, onNavigate }: Props) {
       const otherId = conv.user1_id === user.id ? conv.user2_id : conv.user1_id;
       const { data: prof } = await supabase
         .from('profiles')
-        .select('display_name, avatar_url, status')
+        .select('display_name, avatar_url, status, email')
         .eq('user_id', otherId)
         .maybeSingle();
 
@@ -81,10 +79,12 @@ export default function ChatSidebar({ currentView, onNavigate }: Props) {
       items.push({
         conversation_id: conv.id,
         other_user_id: otherId,
-        other_display_name: prof?.display_name || 'Unknown',
+        other_display_name: prof?.display_name || prof?.email || 'Unknown',
         other_avatar_url: prof?.avatar_url || null,
         other_status: prof?.status || 'offline',
-        last_message: lastMsg?.content,
+        last_message: lastMsg?.content
+          ? lastMsg.content.startsWith('http') ? '🔗 Link' : lastMsg.content
+          : undefined,
         last_message_at: lastMsg?.created_at,
         unread_count: unread || 0,
       });
@@ -124,14 +124,27 @@ export default function ChatSidebar({ currentView, onNavigate }: Props) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, () => {
         fetchConversations();
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'groups' }, () => {
+        fetchGroups();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_members' }, () => {
+        fetchGroups();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user, fetchConversations]);
+  }, [user, fetchConversations, fetchGroups]);
 
   // When navigating to a conversation, refresh to clear badge
   useEffect(() => {
     if (currentView.type === 'dm') {
       setTimeout(fetchConversations, 1000);
+    }
+    if (currentView.type === 'group') {
+      fetchGroups();
+      setTimeout(fetchGroups, 2000); // re-fetch again after 2s to catch icon updates
+    }
+    if (currentView.type === 'empty') {
+      fetchGroups(); // refresh when going back to empty view
     }
   }, [currentView]);
 
@@ -162,10 +175,15 @@ export default function ChatSidebar({ currentView, onNavigate }: Props) {
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <MessageCircle className="h-4 w-4" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500 text-white shadow-md">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" fill="white" stroke="white" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="8" cy="10" r="1" fill="#3B82F6"/>
+                <circle cx="12" cy="10" r="1" fill="#3B82F6"/>
+                <circle cx="16" cy="10" r="1" fill="#3B82F6"/>
+              </svg>
             </div>
-            <span className="text-lg font-bold text-foreground">ChatApp</span>
+            <span className="text-lg font-bold text-foreground">ChatHub</span>
             {totalUnread > 0 && (
               <Badge variant="destructive" className="h-5 min-w-5 text-[10px] px-1.5">
                 {totalUnread > 99 ? '99+' : totalUnread}
@@ -174,15 +192,10 @@ export default function ChatSidebar({ currentView, onNavigate }: Props) {
           </div>
           <div className="flex items-center gap-1">
             <Button
-              variant="ghost" size="icon" className="h-8 w-8 relative"
+              variant="ghost" size="icon" className="h-8 w-8"
               onClick={() => onNavigate({ type: 'contacts' })}
             >
               <UserPlus className="h-4 w-4" />
-              {pendingIncoming.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-[10px] text-destructive-foreground flex items-center justify-center">
-                  {pendingIncoming.length}
-                </span>
-              )}
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onNavigate({ type: 'profile' })}>
               <Settings className="h-4 w-4" />
@@ -318,8 +331,11 @@ export default function ChatSidebar({ currentView, onNavigate }: Props) {
                       : 'hover:bg-accent/50'
                   }`}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary flex-shrink-0">
-                    <Users className="h-5 w-5" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary flex-shrink-0 overflow-hidden">
+                    {group.icon_url
+                      ? <img src={group.icon_url} alt={group.name} className="h-10 w-10 object-cover rounded-xl" />
+                      : <Users className="h-5 w-5" />
+                    }
                   </div>
                   <p className="text-sm font-medium truncate text-left">{group.name}</p>
                 </button>
